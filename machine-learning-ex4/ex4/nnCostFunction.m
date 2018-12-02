@@ -16,9 +16,11 @@ function [J grad] = nnCostFunction(nn_params, ...
 
 % Reshape nn_params back into the parameters Theta1 and Theta2, the weight matrices
 % for our 2 layer neural network
+# 25x401
 Theta1 = reshape(nn_params(1:hidden_layer_size * (input_layer_size + 1)), ...
                  hidden_layer_size, (input_layer_size + 1));
 
+# 10x26
 Theta2 = reshape(nn_params((1 + (hidden_layer_size * (input_layer_size + 1))):end), ...
                  num_labels, (hidden_layer_size + 1));
 
@@ -62,14 +64,50 @@ Theta2_grad = zeros(size(Theta2));
 %               and Theta2_grad from Part 2.
 %
 
+y_labels = zeros(m, 1);
+for i = 1:m
+    val = y(i);
+    if val > size(y_labels, 2)
+        y_labels = [y_labels zeros(m, val-size(y_labels, 2))];
+    endif;
+    y_labels(i, val) = 1;
+endfor;
+# y_labels 5000x10
 
+a1 = [ones(m, 1) X];
+z2 = (Theta1 * a1')'; # 5000x25
+a2 = sigmoid(z2); # 5000x25
+a2 = [ones(m, 1) a2]; # 5000x26
+z3 = (Theta2 * a2')'; # 5000x10
+a3 = sigmoid(z3); # 5000x10
 
+for i = 1:m
+    one_h = a3(i, :);
+    one_y = y_labels(i, :);
+    J = J + (-one_y*log(one_h') - (1-one_y)*log(1-one_h'));
+endfor;
 
+J = 1/m * J;
 
+# Regularization
+Theta1_squared = Theta1(:, 2:end).^2;
+Theta2_squared = Theta2(:, 2:end).^2;
+J = J + lambda/(2*m)*(sum(Theta1_squared(:)) + sum(Theta2_squared(:)));
 
+# Backpropagation
+Delta1 = zeros(size(Theta1));
+Delta2 = zeros(size(Theta2));
+for t = 1:m
+    delta3 = (a3(t, :) - y_labels(t, :))'; # 10x1
+    #        26x10   10x1                      
+    delta2 = Theta2'*delta3 .* [1; sigmoidGradient(z2(t, :)')]; # 26x1
+    delta2 = delta2(2:end); # 25x1
+    Delta1 = Delta1 + delta2*a1(t, :);
+    Delta2 = Delta2 + delta3*a2(t, :);
+endfor;
 
-
-
+Theta1_grad = 1/m.*Delta1 + [zeros(size(Theta1, 1), 1) lambda/m.*Theta1(:, 2:end)];
+Theta2_grad = 1/m.*Delta2 + [zeros(size(Theta2, 1), 1) lambda/m.*Theta2(:, 2:end)];
 
 
 
